@@ -1,7 +1,5 @@
-// scripts/create-migration.js
-const fs = require("fs");
-const path = require("path");
-const { execSync } = require("child_process");
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 function createMigration(name) {
   const timestamp = new Date()
@@ -9,16 +7,16 @@ function createMigration(name) {
     .replace(/[^0-9]/g, "")
     .slice(0, 14);
   const filename = `${timestamp}_${name}.sql`;
-  const filepath = path.join(__dirname, "..", "migrations", filename);
+  const filepath = join(__dirname, "..", "migrations", filename);
 
   // Создаем директорию migrations если её нет
-  const migrationsDir = path.dirname(filepath);
-  if (!fs.existsSync(migrationsDir)) {
-    fs.mkdirSync(migrationsDir, { recursive: true });
+  const migrationsDir = dirname(filepath);
+  if (!existsSync(migrationsDir)) {
+    mkdirSync(migrationsDir, { recursive: true });
   }
 
   // Создаем пустой файл миграции
-  fs.writeFileSync(
+  writeFileSync(
     filepath,
     `-- Migration: ${name}\n-- Created at: ${new Date().toISOString()}\n\n`,
   );

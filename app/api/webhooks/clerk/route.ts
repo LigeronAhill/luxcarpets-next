@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { userRepository } from "@/lib/user-repository";
 
 export async function POST(req: NextRequest) {
+  var role = "guest";
   try {
     const evt = await verifyWebhook(req);
 
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
       `Received webhook with ID ${id} and event type of ${eventType}`,
     );
     switch (eventType) {
-      case "user.created":
+      case "user.created": {
         console.log("Creating new user:", evt.data);
         try {
           await userRepository.upsert(evt.data as UserJSON, "guest");
@@ -23,13 +24,12 @@ export async function POST(req: NextRequest) {
           return new Response("Failed to create user", { status: 500 });
         }
         break;
-
-      case "user.updated":
+      }
+      case "user.updated": {
         console.log("Updating user:", evt.data);
         try {
           const user = evt.data as UserJSON;
           const userId = user.id;
-          var role = "guest";
           if (id) {
             const existing = await userRepository.findById(userId);
             if (existing) {
@@ -43,8 +43,8 @@ export async function POST(req: NextRequest) {
           return new Response("Failed to update user", { status: 500 });
         }
         break;
-
-      case "user.deleted":
+      }
+      case "user.deleted": {
         console.log("Deleting user:", evt.data);
         try {
           const deleted = await userRepository.delete(evt.data.id!);
@@ -58,10 +58,12 @@ export async function POST(req: NextRequest) {
           return new Response("Failed to delete user", { status: 500 });
         }
         break;
-      default:
+      }
+      default: {
         console.log(`🤔 Unhandled event type: ${eventType}`);
         // Можно добавить логирование для неизвестных типов событий
         break;
+      }
     }
     console.log("Webhook payload:", evt.data);
 
