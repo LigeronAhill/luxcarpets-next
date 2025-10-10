@@ -1,7 +1,7 @@
-// lib/user-repository.ts
 import type { UserJSON } from "@clerk/nextjs/server";
 import { clerkUserToDatabase, type UserDatabase } from "@/database/user";
 import { query } from "./db-utils";
+import { PaginatedResponse } from "@/database/response";
 
 export class UserRepository {
   // CREATE - Создание или обновление пользователя
@@ -93,34 +93,83 @@ export class UserRepository {
     return result.rows;
   }
 
-  // READ - Получение пользователей определенной роли
-  async filterByRole(role: string): Promise<UserDatabase[]> {
-    const result = await query<UserDatabase>(
+  // READ - Получение пользователей определенной роли с пагинацией
+  async filterByRole(
+    role: string,
+    page: number = 1,
+    pageSize: number = 50,
+  ): Promise<PaginatedResponse<UserDatabase>> {
+    const offset = (page - 1) * pageSize;
+
+    // Получаем данные
+    const dataResult = await query<UserDatabase>(
       `
       SELECT * FROM users 
       WHERE role = $1
-    `,
+      ORDER BY created_at DESC 
+      LIMIT $2 OFFSET $3
+      `,
+      [role, pageSize, offset],
+    );
+
+    // Получаем общее количество для роли
+    const countResult = await query<{ total_count: string }>(
+      `SELECT COUNT(*) as total_count FROM users WHERE role = $1`,
       [role],
     );
 
-    return result.rows;
+    const totalItems = parseInt(countResult.rows[0].total_count);
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return {
+      data: dataResult.rows,
+      pagination: {
+        currentPage: page,
+        pageSize,
+        totalItems,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
   }
 
-  // READ - Получение всех пользователей (с пагинацией)
+  // READ - Получение всех пользователей с пагинацией
   async findAll(
-    limit: number = 50,
-    offset: number = 0,
-  ): Promise<UserDatabase[]> {
-    const result = await query<UserDatabase>(
+    page: number = 1,
+    pageSize: number = 50,
+  ): Promise<PaginatedResponse<UserDatabase>> {
+    const offset = (page - 1) * pageSize;
+
+    // Получаем данные
+    const dataResult = await query<UserDatabase>(
       `
       SELECT * FROM users 
       ORDER BY created_at DESC 
       LIMIT $1 OFFSET $2
-    `,
-      [limit, offset],
+      `,
+      [pageSize, offset],
     );
 
-    return result.rows;
+    // Получаем общее количество
+    const countResult = await query<{ total_count: string }>(
+      `SELECT COUNT(*) as total_count FROM users`,
+    );
+
+    const totalItems = parseInt(countResult.rows[0].total_count);
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return {
+      data: dataResult.rows,
+      pagination: {
+        currentPage: page,
+        pageSize,
+        totalItems,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
   }
 
   // UPDATE - Обновление отдельных полей
@@ -234,12 +283,17 @@ export class UserRepository {
     }
   }
 
-  // Поиск пользователей по имени/фамилии
+  // Поиск пользователей по имени/фамилии с пагинацией
   async searchByName(
     queryString: string,
-    limit: number = 20,
-  ): Promise<UserDatabase[]> {
-    const result = await query<UserDatabase>(
+    page: number = 1,
+    pageSize: number = 20,
+  ): Promise<PaginatedResponse<UserDatabase>> {
+    const offset = (page - 1) * pageSize;
+    const searchPattern = `%${queryString}%`;
+
+    // Получаем данные
+    const dataResult = await query<UserDatabase>(
       `
       SELECT * FROM users 
       WHERE 
@@ -253,12 +307,37 @@ export class UserRepository {
           WHEN username ILIKE $1 THEN 3
           ELSE 4
         END
-      LIMIT $2
-    `,
-      [`%${queryString}%`, limit],
+      LIMIT $2 OFFSET $3
+      `,
+      [searchPattern, pageSize, offset],
     );
 
-    return result.rows;
+    // Получаем общее количество для поиска
+    const countResult = await query<{ total_count: string }>(
+      `
+      SELECT COUNT(*) as total_count FROM users 
+      WHERE 
+        first_name ILIKE $1 OR 
+        last_name ILIKE $1 OR
+        username ILIKE $1
+      `,
+      [searchPattern],
+    );
+
+    const totalItems = parseInt(countResult.rows[0].total_count);
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return {
+      data: dataResult.rows,
+      pagination: {
+        currentPage: page,
+        pageSize,
+        totalItems,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
   }
 
   // Получение пользователей по primary email (первый email в массиве)
@@ -291,6 +370,93 @@ export class UserRepository {
     `);
 
     return result.rows[0];
+  }
+  // READ - Получение пользователей с дополнительными фильтрами и пагинацией
+  async findWithFilters(
+    filters: {
+      role?: string;
+      search?: string;
+      hasImage?: boolean;
+      isActive?: boolean; // был вход в систему
+    },
+    page: number = 1,
+    pageSize: number = 50,
+  ): Promise<PaginatedResponse<UserDatabase>> {
+    const offset = (page - 1) * pageSize;
+    const whereConditions: string[] = [];
+    const queryParams: any[] = [];
+    let paramCount = 1;
+
+    // Добавляем условия фильтрации
+    if (filters.role) {
+      whereConditions.push(`role = $${paramCount}`);
+      queryParams.push(filters.role);
+      paramCount++;
+    }
+
+    if (filters.search) {
+      whereConditions.push(`(
+        first_name ILIKE $${paramCount} OR 
+        last_name ILIKE $${paramCount} OR
+        username ILIKE $${paramCount}
+      )`);
+      queryParams.push(`%${filters.search}%`);
+      paramCount++;
+    }
+
+    if (filters.hasImage !== undefined) {
+      if (filters.hasImage) {
+        whereConditions.push(`image_url IS NOT NULL AND image_url != ''`);
+      } else {
+        whereConditions.push(`image_url IS NULL OR image_url = ''`);
+      }
+    }
+
+    if (filters.isActive !== undefined) {
+      if (filters.isActive) {
+        whereConditions.push(`last_sign_in_at IS NOT NULL`);
+      } else {
+        whereConditions.push(`last_sign_in_at IS NULL`);
+      }
+    }
+
+    // Формируем WHERE часть
+    const whereClause =
+      whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(" AND ")}`
+        : "";
+
+    // Получаем данные
+    const dataResult = await query<UserDatabase>(
+      `
+      SELECT * FROM users 
+      ${whereClause}
+      ORDER BY created_at DESC 
+      LIMIT $${paramCount} OFFSET $${paramCount + 1}
+      `,
+      [...queryParams, pageSize, offset],
+    );
+
+    // Получаем общее количество
+    const countResult = await query<{ total_count: string }>(
+      `SELECT COUNT(*) as total_count FROM users ${whereClause}`,
+      queryParams,
+    );
+
+    const totalItems = parseInt(countResult.rows[0].total_count);
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return {
+      data: dataResult.rows,
+      pagination: {
+        currentPage: page,
+        pageSize,
+        totalItems,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
   }
 }
 
