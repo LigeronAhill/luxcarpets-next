@@ -1,19 +1,52 @@
+[language-server]
+biome = { command = "biome", args = ["lsp-proxy"] }
+
 [[language]]
-name = "rust"
-language-servers = ["rust-analyzer", "tailwindcss", "emmet-ls"]
+name = "javascript"
+language-servers = [
+    { name = "typescript-language-server", except-features = [
+        "format",
+    ] },
+    "biome",
+]
 auto-format = true
 
-[language-server.tailwindcss]
-command = "tailwindcss-language-server"
-language-id = "rust"
-args = ["--stdio"]
+[[language]]
+name = "typescript"
+language-servers = [
+    { name = "typescript-language-server", except-features = [
+        "format",
+    ] },
+    "biome",
+]
+auto-format = true
 
-[language-server.tailwindcss.config]
-tailwindCSS = { includeLanguages = { rust = "html", "*.rs" = "html" } }
+[[language]]
+name = "tsx"
+auto-format = true
+language-servers = [
+    { name = "typescript-language-server", except-features = [
+        "format",
+    ] },
+    "tailwindcss-ls",
+    "biome",
+]
 
-[language-server.rust-analyzer.config]
-rustfmt = { overrideCommand = ["leptosfmt", "--stdin", "--rustfmt"] }
-features = "all"
+[[language]]
+name = "jsx"
+auto-format = true
+language-servers = [
+    { name = "typescript-language-server", except-features = [
+        "format",
+    ] },
+    "biome",
+]
 
-[language-server.emmet-ls.config]
-emmet = { includeLanguages = { rust = "html", "*.rs" = "html" } }
+[[language]]
+name = "json"
+language-servers = [
+    { name = "vscode-json-language-server", except-features = [
+        "format",
+    ] },
+    "biome",
+]

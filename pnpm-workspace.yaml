@@ -1,6 +1,0 @@
-ignoredBuiltDependencies:
-  - sharp
-
-onlyBuiltDependencies:
-  - '@clerk/shared'
-  - '@tailwindcss/oxide'
