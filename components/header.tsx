@@ -1,30 +1,35 @@
-import {
-	SignedIn,
-	SignedOut,
-	SignInButton,
-	SignUpButton,
-	UserButton,
-} from "@clerk/nextjs";
+import Image from "next/image";
+import Link from "next/link";
+import Menu from "./menu";
 import { ModeToggle } from "./mode-toggle";
+import SearchBar from "./searchbar";
+import UserProfile from "./userprofile";
 
 export default async function Header(): Promise<React.JSX.Element> {
 	return (
-		<header>
-			<SignedOut>
-				<SignInButton />
-				<SignUpButton>
-					<button
-						type="button"
-						className="h-10 cursor-pointer rounded-full bg-[#6c47ff] px-4 font-medium text-ceramic-white text-sm sm:h-12 sm:px-5 sm:text-base"
-					>
-						Sign Up
-					</button>
-				</SignUpButton>
-			</SignedOut>
-			<SignedIn>
-				<UserButton />
-			</SignedIn>
-			<ModeToggle />
+		<header className="sticky top-0 z-40 mb-4 flex h-16 min-h-[4rem] items-center justify-between px-4">
+			<Link href="/" className="flex">
+				<Image
+					src="/images/slimluxcarpetslogo.png"
+					alt="logo"
+					width={234}
+					height={63}
+					className="max-md:hidden dark:invert"
+				/>
+				<Image
+					src="/images/luxcarpetslogo.png"
+					alt="logo"
+					width={69}
+					height={69}
+					className="md:hidden dark:invert"
+				/>
+			</Link>
+			<SearchBar />
+			<div className="flex items-center gap-4">
+				<ModeToggle />
+				<Menu />
+				<UserProfile />
+			</div>
 		</header>
 	);
 }

@@ -6,6 +6,7 @@ import { Montserrat } from "next/font/google";
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
+import Footer from "@/components/footer";
 
 const montserrat = Montserrat({
 	variable: "--font-montserrat",
@@ -31,7 +32,7 @@ export default function RootLayout({
 		>
 			<html lang="ru" suppressHydrationWarning>
 				<body
-					className={`${montserrat.variable} font-base text-neutral antialiased dark:bg-basedark-100 dark:text-base-100`}
+					className={`${montserrat.variable} mx-auto grid min-h-dvh max-w-7xl grid-rows-[auto_1fr_auto] py-4 font-base text-neutral antialiased dark:bg-basedark-100 dark:text-base-100`}
 				>
 					<ThemeProvider
 						attribute="class"
@@ -41,6 +42,7 @@ export default function RootLayout({
 					>
 						<Header />
 						{children}
+						<Footer />
 					</ThemeProvider>
 				</body>
 			</html>
